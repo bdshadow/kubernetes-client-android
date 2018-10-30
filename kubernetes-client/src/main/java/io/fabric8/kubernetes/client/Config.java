@@ -16,14 +16,14 @@
 
 package io.fabric8.kubernetes.client;
 
+import static okhttp3.TlsVersion.TLS_1_2;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import io.fabric8.kubernetes.api.model.ConfigBuilder;
-import okhttp3.TlsVersion;
 import io.fabric8.kubernetes.api.model.AuthInfo;
 import io.fabric8.kubernetes.api.model.Cluster;
+import io.fabric8.kubernetes.api.model.ConfigBuilder;
 import io.fabric8.kubernetes.api.model.Context;
 import io.fabric8.kubernetes.client.internal.KubeConfigUtils;
 import io.fabric8.kubernetes.client.internal.SSLUtils;
@@ -31,20 +31,17 @@ import io.fabric8.kubernetes.client.utils.IOHelpers;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.kubernetes.client.utils.Utils;
 import io.sundr.builder.annotations.Buildable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.charset.StandardCharsets;
+import java.io.RandomAccessFile;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static okhttp3.TlsVersion.TLS_1_2;
+import okhttp3.TlsVersion;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true, allowGetters = true, allowSetters = true)
@@ -373,15 +370,17 @@ public class Config {
       config.setMasterUrl("https://" + hostPort);
     }
     if (Utils.getSystemPropertyOrEnvVar(KUBERNETES_AUTH_TRYSERVICEACCOUNT_SYSTEM_PROPERTY, true)) {
-      boolean serviceAccountCaCertExists = Files.isRegularFile(new File(KUBERNETES_SERVICE_ACCOUNT_CA_CRT_PATH).toPath());
+      boolean serviceAccountCaCertExists = isRegularFile(new File(KUBERNETES_SERVICE_ACCOUNT_CA_CRT_PATH));
       if (serviceAccountCaCertExists) {
         LOGGER.debug("Found service account ca cert at: ["+KUBERNETES_SERVICE_ACCOUNT_CA_CRT_PATH+"].");
         config.setCaCertFile(KUBERNETES_SERVICE_ACCOUNT_CA_CRT_PATH);
       } else {
         LOGGER.debug("Did not find service account ca cert at: ["+KUBERNETES_SERVICE_ACCOUNT_CA_CRT_PATH+"].");
       }
-      try {
-        String serviceTokenCandidate = new String(Files.readAllBytes(new File(KUBERNETES_SERVICE_ACCOUNT_TOKEN_PATH).toPath()));
+      try(RandomAccessFile f = new RandomAccessFile(new File(KUBERNETES_SERVICE_ACCOUNT_TOKEN_PATH), "r")) {
+        byte[] b = new byte[(int)f.length()];
+        f.readFully(b);
+        String serviceTokenCandidate = new String(b);
         if (serviceTokenCandidate != null) {
           LOGGER.debug("Found service account token at: ["+KUBERNETES_SERVICE_ACCOUNT_TOKEN_PATH+"].");
           config.setOauthToken(serviceTokenCandidate);
@@ -433,18 +432,38 @@ public class Config {
     return config;
   }
 
+  private static boolean isRegularFile(File file) {
+    if (file.isDirectory() || !file.isFile()) { // example: /dev/null from ConfigTest
+      return false;
+    }
+    try {
+      File canon;
+      if (file.getParent() == null) {
+        canon = file;
+      } else {
+        File canonDir = file.getParentFile().getCanonicalFile();
+        canon = new File(canonDir, file.getName());
+      }
+      return canon.getCanonicalFile().equals(canon.getAbsoluteFile());
+    } catch (IOException io) {
+      return false;
+    }
+  }
+
   private static boolean tryKubeConfig(Config config, String context) {
     LOGGER.debug("Trying to configure client from Kubernetes config...");
     if (Utils.getSystemPropertyOrEnvVar(KUBERNETES_AUTH_TRYKUBECONFIG_SYSTEM_PROPERTY, true)) {
       File kubeConfigFile = new File(
           Utils.getSystemPropertyOrEnvVar(KUBERNETES_KUBECONFIG_FILE, new File(getHomeDir(), ".kube" + File.separator + "config").toString()));
-      boolean kubeConfigFileExists = Files.isRegularFile(kubeConfigFile.toPath());
+      boolean kubeConfigFileExists = isRegularFile(kubeConfigFile);
 
       if (kubeConfigFileExists) {
         LOGGER.debug("Found for Kubernetes config at: ["+kubeConfigFile.getPath()+"].");
         String kubeconfigContents;
-        try {
-          kubeconfigContents = new String(Files.readAllBytes(kubeConfigFile.toPath()), StandardCharsets.UTF_8);
+        try(RandomAccessFile f = new RandomAccessFile(kubeConfigFile, "r")) {
+          byte[] b = new byte[(int)f.length()];
+          f.readFully(b);
+          kubeconfigContents = new String(b);
         } catch(IOException e) {
           LOGGER.error("Could not load Kubernetes config file from {}", kubeConfigFile.getPath(), e);
           return false;
@@ -572,11 +591,13 @@ public class Config {
     LOGGER.debug("Trying to configure client namespace from Kubernetes service account namespace path...");
     if (Utils.getSystemPropertyOrEnvVar(KUBERNETES_TRYNAMESPACE_PATH_SYSTEM_PROPERTY, true)) {
       String serviceAccountNamespace = Utils.getSystemPropertyOrEnvVar(KUBERNETES_NAMESPACE_FILE, KUBERNETES_NAMESPACE_PATH);
-      boolean serviceAccountNamespaceExists = Files.isRegularFile(new File(serviceAccountNamespace).toPath());
+      boolean serviceAccountNamespaceExists = isRegularFile(new File(serviceAccountNamespace));
       if (serviceAccountNamespaceExists) {
         LOGGER.debug("Found service account namespace at: [" + serviceAccountNamespace + "].");
-        try {
-          String namespace = new String(Files.readAllBytes(new File(serviceAccountNamespace).toPath()));
+        try(RandomAccessFile f = new RandomAccessFile(new File(serviceAccountNamespace), "r")) {
+          byte[] b = new byte[(int)f.length()];
+          f.readFully(b);
+          String namespace = new String(b);
           config.setNamespace(namespace.replace(System.lineSeparator(), ""));
           return true;
         } catch (IOException e) {
