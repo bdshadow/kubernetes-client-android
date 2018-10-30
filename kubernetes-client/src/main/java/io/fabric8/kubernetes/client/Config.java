@@ -521,7 +521,9 @@ public class Config {
                 List<Map<String, String>> env = (List<Map<String, String>>) exec.get("env");
                 if (env != null) {
                   Map<String, String> environment = pb.environment();
-                  env.forEach(pair -> environment.put(pair.get("name"), pair.get("value")));
+                  for (Map<String, String> pair : env) {
+                    environment.put(pair.get("name"), pair.get("value"));
+                  }
                 }
                 // TODO check behavior of tty & stdin
                 Process p = pb.start();
