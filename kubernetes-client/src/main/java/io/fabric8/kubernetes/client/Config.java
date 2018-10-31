@@ -527,7 +527,7 @@ public class Config {
                 String command = (String) exec.get("command");
                 if (command.contains("/") && !command.startsWith("/") && kubeconfigPath != null && !kubeconfigPath.isEmpty()) {
                   // Appears to be a relative path; normalize. Spec is vague about how to detect this situation.
-                  command = Paths.get(kubeconfigPath).resolveSibling(command).normalize().toString();
+                  command = new File((new File(kubeconfigPath)).getParent(), command).getCanonicalPath();
                 }
                 argv.add(command);
                 @SuppressWarnings("unchecked")

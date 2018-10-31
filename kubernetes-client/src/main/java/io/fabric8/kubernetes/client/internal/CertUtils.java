@@ -23,8 +23,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.RandomAccessFile;
 import java.security.KeyFactory;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -62,7 +61,10 @@ public class CertUtils {
       return new ByteArrayInputStream(bytes);
     }
     if (file != null) {
-      return new ByteArrayInputStream(new String(Files.readAllBytes(Paths.get(file))).trim().getBytes());
+      RandomAccessFile f = new RandomAccessFile(new File(file), "r");
+      byte[] b = new byte[(int)f.length()];
+      f.readFully(b);
+      return new ByteArrayInputStream(new String(b).trim().getBytes());
     }
     return null;
   }

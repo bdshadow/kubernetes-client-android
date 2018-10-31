@@ -16,15 +16,13 @@
 
 package io.fabric8.kubernetes.client.utils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import java.io.Closeable;
+import java.io.File;
 import java.io.Flushable;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +30,8 @@ import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import io.fabric8.kubernetes.client.KubernetesClientException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class Utils {
@@ -237,7 +235,7 @@ public class Utils {
 
   public static String filePath(URL path) {
     try {
-      return Paths.get(path.toURI()).toString();
+      return new File(path.toURI()).getPath();
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }
