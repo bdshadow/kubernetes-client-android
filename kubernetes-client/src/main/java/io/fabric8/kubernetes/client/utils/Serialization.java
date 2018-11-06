@@ -221,7 +221,7 @@ public class Serialization {
   public static <T> T unmarshal(InputStream is, TypeReference<T> type, Map<String, String> parameters) throws KubernetesClientException {
     InputStream wrapped = parameters != null && !parameters.isEmpty() ? new ReplaceValueStream(parameters).createInputStream(is) : is;
     try (BufferedInputStream bis = new BufferedInputStream(wrapped)) {
-      bis.mark(-1);
+      bis.mark(1);
       int intch;
       do {
         intch = bis.read();
