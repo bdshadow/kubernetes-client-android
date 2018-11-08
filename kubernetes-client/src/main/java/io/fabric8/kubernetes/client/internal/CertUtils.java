@@ -82,8 +82,16 @@ public class CertUtils {
     return trustStorePassphrase.toCharArray();
   }
 
+  private static KeyStore getKeyStoreInstance() throws KeyStoreException {
+    if ("The Android Project".equals(System.getProperty("java.vendor"))) {
+      return KeyStore.getInstance("BKS");
+    } else {
+      return KeyStore.getInstance("JKS");
+    }
+  }
+
   public static KeyStore createTrustStore(InputStream pemInputStream, String trustStoreFile, char[] trustStorePassphrase) throws IOException, CertificateException, KeyStoreException, NoSuchAlgorithmException {
-    KeyStore trustStore = KeyStore.getInstance("JKS");
+    KeyStore trustStore = getKeyStoreInstance();
 
     if (Utils.isNotNullOrEmpty(trustStoreFile)) {
       trustStore.load(new FileInputStream(trustStoreFile), trustStorePassphrase);
@@ -119,7 +127,7 @@ public class CertUtils {
         privateKey = keyFactory.generatePrivate(keySpec);
       }
 
-      KeyStore keyStore = KeyStore.getInstance("JKS");
+      KeyStore keyStore = getKeyStoreInstance();
       if (Utils.isNotNullOrEmpty(keyStoreFile)){
         keyStore.load(new FileInputStream(keyStoreFile), keyStorePassphrase);
       } else {
